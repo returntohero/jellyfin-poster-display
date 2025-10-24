@@ -26,6 +26,13 @@ jobs:
       - name: 🐳 Build Docker image
         run: |
           docker build -t jellyfin-poster-display .
+    
+      - name: 🔐 Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
       - name: 📦 Push image to Docker Hub
         run: |
           docker tag jellyfin-poster-display ${{ secrets.DOCKERHUB_USERNAME }}/jellyfin-poster-display:main
@@ -38,11 +45,5 @@ jobs:
           curl --fail http://localhost:5000 || (docker logs jellyfin-test && exit 1)
           docker stop jellyfin-test
           docker rm jellyfin-test
-
-      - name: 🔐 Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       
