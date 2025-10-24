@@ -1,4 +1,4 @@
-2# 🎬 Jellyfin Poster Display
+🎬 Jellyfin Poster Display
 
 A simple Dockerized Flask app that connects to your Jellyfin server and displays large, cinema-style posters:
 - Shows **Now Playing** poster and runtime when something is playing.
