@@ -11,4 +11,4 @@ COPY app/ /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "main:app", "--workers", "1", "--threads", "4"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "main:app", "--workers", "1", "--threads", "4"]
