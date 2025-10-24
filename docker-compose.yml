@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  poster-display:
+    build: .
+    container_name: jellyfin-poster-display
+    ports:
+      - "8000:8000"
+    environment:
+      - JELLYFIN_URL=http://your-jellyfin-ip:8096/
+      - JELLYFIN_API_KEY=your_api_key_here
+      - POLL_INTERVAL=2
+      - IDLE_SWITCH_SECONDS=15
+    volumes:
+      - ./config.json:/app/config.json
+    restart: unless-stopped
