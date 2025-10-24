@@ -43,5 +43,5 @@ jobs:
 
       - name: 📦 Push image to Docker Hub
         run: |
-          docker tag jellyfin-poster-display ${{ secrets.DOCKERHUB_USERNAME }}/jellyfin-poster-display:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/jellyfin-poster-display:latest
+          docker tag jellyfin-poster-display ${{ secrets.DOCKERHUB_USERNAME }}/jellyfin-poster-display:main
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/jellyfin-poster-display:main
