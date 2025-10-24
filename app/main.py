@@ -181,4 +181,4 @@ def proxy_image(item_id):
     return Response(rr.raw.read(), content_type=rr.headers.get("Content-Type", "image/jpeg"))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=5000)
