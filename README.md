@@ -1,4 +1,4 @@
-# 🎬 Jellyfin Poster Display
+2# 🎬 Jellyfin Poster Display
 
 A simple Dockerized Flask app that connects to your Jellyfin server and displays large, cinema-style posters:
 - Shows **Now Playing** poster and runtime when something is playing.
@@ -10,7 +10,7 @@ A simple Dockerized Flask app that connects to your Jellyfin server and displays
 
 1. Clone this repo:
 ```bash
-git clone https://github.com/yourusername/jellyfin-poster-display.git
+git clone https://github.com/returntohero/jellyfin-poster-display.git
 cd jellyfin-poster-display
 ```
 2. Edit `docker-compose.yml` to set your `JELLYFIN_URL` and `JELLYFIN_API_KEY`.
