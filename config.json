@@ -1,4 +1,14 @@
 {
+  "jellyfin_url": "http://localhost:8096",
+  "api_key": "YOUR_JELLYFIN_API_KEY",
+  "refresh_interval_seconds": 15,
+  "poster_cycle_interval_seconds": 30,
+  "include_tv": true,
   "library_ids": [],
-  "include_tv": false
+  "theme": {
+    "background_color": "#000000",
+    "text_color": "#FFFFFF",
+    "font": "Arial",
+    "show_clock": true
+  }
 }
