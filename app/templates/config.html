@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Jellyfin Poster Config</title>
+  <style>
+    body { font-family:sans-serif; background:#111; color:#fff; padding:20px; }
+    h1 { color:#ffd700; }
+    .view-list { margin:20px 0; }
+    label { display:block; margin:8px 0; }
+    input[type=submit] {
+      background:#ffd700; color:#111; padding:10px 20px;
+      border:none; border-radius:6px; cursor:pointer; font-weight:bold;
+    }
+    a { color:#ffd700; }
+  </style>
+</head>
+<body>
+  <h1>Poster Display Configuration</h1>
+
+  <form method="POST">
+    <h2>Libraries</h2>
+    <div class="view-list">
+      {% if views %}
+        {% for v in views %}
+          <label>
+            <input type="checkbox" name="library_ids" value="{{v.Id}}" {% if v.Id in config.library_ids %}checked{% endif %}>
+            {{v.Name}}
+          </label>
+        {% endfor %}
+      {% else %}
+        <p>No libraries found or Jellyfin not reachable.</p>
+      {% endif %}
+    </div>
+
+    <h2>Content Options</h2>
+    <label>
+      <input type="checkbox" name="include_tv" {% if config.include_tv %}checked{% endif %}>
+      Include TV Shows in idle rotation
+    </label>
+
+    <p><input type="submit" value="Save"></p>
+  </form>
+
+  <p><a href="/">⬅ Back to Display</a></p>
+</body>
+</html>

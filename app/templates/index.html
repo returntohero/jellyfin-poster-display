@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Jellyfin Poster Display</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body, html { height:100%; margin:0; background:#000; color:#fff; font-family:system-ui, -apple-system, "Segoe UI", Roboto;}
+    .wrap { height:100%; display:flex; align-items:center; justify-content:center; }
+    .poster { position:relative; width:66vh; max-width:90vw; max-height:90vh; box-shadow:0 10px 40px rgba(0,0,0,.7); border-radius:8px; overflow:hidden; background:#111; }
+    .poster img { width:100%; height:100%; object-fit:cover; display:block; opacity:0; transition: opacity 2s ease-in-out; }
+    .poster img.visible { opacity:1; }
+    .overlay { position:absolute; bottom:0; left:0; right:0; padding:18px; backdrop-filter: blur(4px); background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 60%); }
+    .title { font-size:1.6rem; font-weight:700; margin:0 0 6px 0; }
+    .meta { font-size:1rem; opacity:.95; display:flex; gap:12px; align-items:center; }
+    .now { color:#ffd700; font-weight:700; margin-right:10px; }
+    .timer { font-variant-numeric: tabular-nums; }
+    .fade-out { opacity:0 !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="poster" id="poster">
+      <img id="poster-img" src="" alt="poster" />
+      <div class="overlay">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="title" id="title">Loading...</div>
+            <div class="meta"><span id="status"></span><span class="timer" id="timer"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const pollIntervalSec = {{ poll_interval }};
+const idleSwitchSeconds = {{ idle_switch_seconds }};
+let idleList = [];
+let idleIndex = 0;
+let idleTimer = null;
+let playing = false;
+let currentPosterItemId = null;
+let positionSeconds = 0;
+let runtimeSeconds = null;
+let lastUpdateMs = 0;
+const posterImg = document.getElementById("poster-img");
+const titleEl = document.getElementById("title");
+const statusEl = document.getElementById("status");
+const timerEl = document.getElementById("timer");
+
+function secToClock(s){
+  if (s == null) return "";
+  s = Math.max(0, Math.floor(s));
+  const hh = Math.floor(s/3600), mm = Math.floor((s%3600)/60), ss = s%60;
+  if (hh>0) return `${hh}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  return `${mm}:${String(ss).padStart(2,'0')}`;
+}
+
+function setPosterFor(item){
+  if(!item) return;
+  const id = item.id || item.poster_item_id;
+  const title = item.title || item.Name || "Unknown";
+  currentPosterItemId = id;
+  titleEl.textContent = title;
+  if (item.playing) {
+    statusEl.innerHTML = '<span class="now">NOW PLAYING</span>';
+  } else {
+    statusEl.textContent = 'Poster';
+  }
+  // begin crossfade
+  posterImg.classList.remove('visible');
+  // set new src after small delay so fade-out is visible
+  setTimeout(() => {
+    posterImg.src = `/image/${id}?type=Primary&maxWidth=1200`;
+    posterImg.onload = () => {
+      posterImg.classList.add('visible');
+    };
+  }, 400);
+}
+
+async function updateNow(){
+  try {
+    const resp = await fetch("/api/now");
+    const js = await resp.json();
+    const ts = Date.now();
+    lastUpdateMs = ts;
+    if (js.playing){
+      playing = true;
+      positionSeconds = js.position_seconds || 0;
+      runtimeSeconds = js.runtime_seconds || null;
+      setPosterFor({id: js.poster_item_id, title: js.title, playing: true});
+      stopIdleRotation();
+    } else {
+      playing = false;
+      idleList = js.movies || [];
+      if (idleList.length>0 && !idleTimer){
+        startIdleRotation();
+      } else if (idleList.length === 0){
+        titleEl.textContent = "No movies found in library";
+        posterImg.src = "";
+        statusEl.textContent = "";
+      }
+    }
+  } catch(e){
+    console.error("failed /api/now", e);
+    titleEl.textContent = "Error contacting server";
+    statusEl.textContent = "";
+  }
+}
+
+function tick(){
+  if (playing){
+    const now = Date.now();
+    const elapsed = (now - lastUpdateMs) / 1000.0;
+    const current = (positionSeconds || 0) + elapsed;
+    timerEl.textContent = secToClock(current) + (runtimeSeconds ? " / " + secToClock(runtimeSeconds) : "");
+  } else {
+    timerEl.textContent = "";
+  }
+}
+
+function startIdleRotation(){
+  if (idleTimer) return;
+  if (!idleList || idleList.length===0) return;
+  idleTimer = setInterval(()=>{
+    idleIndex = Math.floor(Math.random() * idleList.length);
+    const it = idleList[idleIndex];
+    setPosterFor({id: it.id, title: it.title || it.Name, playing: false});
+  }, idleSwitchSeconds * 1000);
+  idleIndex = Math.floor(Math.random() * idleList.length);
+  setPosterFor({id: idleList[idleIndex].id, title: idleList[idleIndex].title || idleList[idleIndex].Name, playing: false});
+}
+
+function stopIdleRotation(){
+  if (idleTimer) {
+    clearInterval(idleTimer);
+    idleTimer = null;
+  }
+}
+
+(async function main(){
+  await updateNow();
+  setInterval(updateNow, pollIntervalSec * 1000);
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
