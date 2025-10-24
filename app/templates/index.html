@@ -1,198 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jellyfin Poster Display</title>
+  <meta charset="UTF-8">
+  <title>🎬 Jellyfin Poster Display</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&display=swap');
-
     body {
       margin: 0;
-      overflow: hidden;
-      background-color: #000;
+      background-color: black;
       color: white;
-      font-family: 'Oswald', sans-serif;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      height: 100vh;
-    }
-
-    .header {
-      font-size: 3em;
-      padding: 0.4em 0;
-      text-transform: uppercase;
-      letter-spacing: 3px;
-      color: gold;
-      text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
-      animation: pulse 3s infinite alternate;
-    }
-
-    @keyframes pulse {
-      0% { text-shadow: 0 0 20px rgba(255,215,0,0.8); }
-      100% { text-shadow: 0 0 50px rgba(255,215,0,1); }
-    }
-
-    .poster {
-      flex: 1;
+      font-family: "Helvetica Neue", sans-serif;
+      overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      text-align: center;
     }
 
-    .poster img {
-      max-height: 85%;
-      max-width: 85%;
+    h1 {
+      font-size: 3em;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+    }
+
+    img {
+      max-height: 70vh;
       border-radius: 12px;
-      box-shadow: 0 0 60px rgba(255, 215, 0, 0.5);
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.4);
       transition: opacity 1s ease-in-out;
-      opacity: 1;
     }
 
-    .poster img.fade {
-      opacity: 0;
-    }
-
-    .footer {
-      font-size: 1.5em;
-      padding: 0.3em;
-    }
-
-    .progress-container {
+    #progress-container {
+      width: 60%;
       height: 10px;
-      width: 80%;
-      margin: 10px auto;
-      background-color: #333;
-      border-radius: 10px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 5px;
+      margin-top: 20px;
       overflow: hidden;
-      display: none;
     }
 
-    .progress-bar {
+    #progress-bar {
       height: 100%;
+      background: #ff5555;
       width: 0%;
-      background: linear-gradient(90deg, gold, orange);
       transition: width 1s linear;
+    }
+
+    #time {
+      margin-top: 10px;
+      font-size: 1.2em;
+      opacity: 0.8;
     }
   </style>
 </head>
 <body>
-  <div class="header" id="statusText">Loading...</div>
-
-  <div class="poster">
-    <img id="posterImage" src="" alt="Poster" />
+  <h1 id="title">Coming Soon</h1>
+  <img id="poster" src="" alt="Poster">
+  <div id="progress-container" style="display:none;">
+    <div id="progress-bar"></div>
   </div>
-
-  <div class="footer">
-    <div id="movieInfo"></div>
-    <div class="progress-container" id="progressContainer">
-      <div class="progress-bar" id="progressBar"></div>
-    </div>
-  </div>
+  <div id="time"></div>
 
   <script>
-    const jellyfinUrl = "{{ config['JELLYFIN_URL'] if config else '' }}" || "http://YOUR_JELLYFIN_IP:8096";
-    const apiKey = "{{ config['JELLYFIN_API_KEY'] if config else '' }}" || "YOUR_API_KEY";
-    const userId = "{{ config['JELLYFIN_USER_ID'] if config else '' }}" || "YOUR_USER_ID";
-
     let posters = [];
-    let posterIndex = 0;
-    let currentPoster = null;
+    let currentPosterIndex = 0;
+    let posterInterval = 10000; // 10 seconds between random posters
+    let cycleTimer;
 
-    async function fetchNowPlaying() {
-      try {
-        const res = await fetch(`${jellyfinUrl}/Sessions?api_key=${apiKey}`);
-        const data = await res.json();
-        const playing = data.find(s => s.NowPlayingItem);
-
-        if (playing && playing.NowPlayingItem) {
-          const item = playing.NowPlayingItem;
-          const title = item.Name;
-          const runtimeTicks = item.RunTimeTicks;
-          const posTicks = playing.PlayState.PositionTicks;
-          const posterUrl = `${jellyfinUrl}/Items/${item.Id}/Images/Primary?api_key=${apiKey}`;
-
-          const start = new Date(Date.now() - (posTicks / 10000));
-          const end = new Date(start.getTime() + (runtimeTicks / 10000));
-
-          showNowPlaying(title, posterUrl, start, end, posTicks, runtimeTicks);
-        } else {
-          showComingSoon();
-        }
-      } catch (err) {
-        console.error(err);
-        showComingSoon();
-      }
+    async function loadLibrary() {
+      const res = await fetch("/api/library");
+      posters = await res.json();
+      showRandomPoster();
     }
 
-    async function loadNextUpOrRecent() {
-      try {
-        // Try Next Up first
-        let res = await fetch(`${jellyfinUrl}/Users/${userId}/Items/NextUp?Limit=20&api_key=${apiKey}`);
-        let data = await res.json();
-
-        if (!data.Items || data.Items.length === 0) {
-          // fallback: Recently added
-          res = await fetch(`${jellyfinUrl}/Users/${userId}/Items/Latest?IncludeItemTypes=Movie&Limit=20&api_key=${apiKey}`);
-          data = await res.json();
-        }
-
-        posters = data.Items.map(i => ({
-          title: i.Name,
-          url: `${jellyfinUrl}/Items/${i.Id}/Images/Primary?api_key=${apiKey}`
-        }));
-      } catch (err) {
-        console.error("NextUp/Recent load failed:", err);
-      }
-    }
-
-    function fadeImage(newSrc) {
-      const img = document.getElementById("posterImage");
-      img.classList.add("fade");
-      setTimeout(() => {
-        img.src = newSrc;
-        img.classList.remove("fade");
-      }, 1000);
-    }
-
-    function showNowPlaying(title, posterUrl, start, end, posTicks, runtimeTicks) {
-      document.getElementById("statusText").textContent = "🎬 NOW PLAYING";
-      document.getElementById("progressContainer").style.display = "block";
-
-      if (currentPoster !== posterUrl) {
-        fadeImage(posterUrl);
-        currentPoster = posterUrl;
-      }
-
-      document.getElementById("movieInfo").innerHTML =
-        `${title}<br><small>${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
-        — ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>`;
-
-      const percent = (posTicks / runtimeTicks) * 100;
-      document.getElementById("progressBar").style.width = `${percent}%`;
-    }
-
-    function showComingSoon() {
-      document.getElementById("statusText").textContent = "🎟️ COMING SOON";
-      document.getElementById("progressContainer").style.display = "none";
-
+    function showRandomPoster() {
       if (posters.length === 0) return;
-      const next = posters[posterIndex];
-      if (next.url !== currentPoster) {
-        fadeImage(next.url);
-        currentPoster = next.url;
-      }
-      document.getElementById("movieInfo").innerHTML = next.title || "";
-      posterIndex = (posterIndex + 1) % posters.length;
+      document.getElementById("title").textContent = "Coming Soon";
+      document.getElementById("poster").src = posters[currentPosterIndex];
+      document.getElementById("progress-container").style.display = "none";
+      document.getElementById("time").textContent = "";
+      currentPosterIndex = (currentPosterIndex + 1) % posters.length;
+      clearTimeout(cycleTimer);
+      cycleTimer = setTimeout(showRandomPoster, posterInterval);
     }
 
-    loadNextUpOrRecent();
-    fetchNowPlaying();
+    async function checkNowPlaying() {
+      const res = await fetch("/api/now");
+      const data = await res.json();
 
-    setInterval(fetchNowPlaying, 15000);
-    setInterval(showComingSoon, 20000);
+      if (data.title) {
+        clearTimeout(cycleTimer);
+        document.getElementById("title").textContent = "Now Playing: " + data.title;
+        document.getElementById("poster").src = data.poster;
+        document.getElementById("progress-container").style.display = "block";
+        document.getElementById("time").textContent = `${data.start_time} - ${data.end_time}`;
+        const percent = (data.position / data.duration) * 100;
+        document.getElementById("progress-bar").style.width = percent + "%";
+      } else {
+        document.getElementById("progress-container").style.display = "none";
+        showRandomPoster();
+      }
+    }
+
+    setInterval(checkNowPlaying, 5000);
+    loadLibrary();
   </script>
 </body>
 </html>
