@@ -4,7 +4,7 @@ A simple Dockerized Flask app that connects to your Jellyfin server and displays
 - Shows **Now Playing** poster and runtime when something is playing.
 - When idle, cycles posters from selected libraries (movies and optionally TV shows).
 - Configuration UI to choose which libraries and whether to include TV shows.
-- Smooth cross-fade transitions between posters.
+- Smooth cross-fade transitions between posters
 
 ## Quickstart (Docker)
 
