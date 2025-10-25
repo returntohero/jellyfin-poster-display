@@ -6,106 +6,136 @@
   <style>
     body {
       margin: 0;
-      background-color: black;
-      color: white;
-      font-family: "Helvetica Neue", sans-serif;
-      overflow: hidden;
+      height: 100vh;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      flex-direction: column;
-      height: 100vh;
-      text-align: center;
-    }
-
-    h1 {
-      font-size: 3em;
-      letter-spacing: 2px;
-      margin-bottom: 20px;
+      background: radial-gradient(circle at center, #111 0%, #000 100%);
+      overflow: hidden;
+      color: #fff;
+      font-family: "Oswald", sans-serif;
       text-transform: uppercase;
     }
 
-    img {
-      max-height: 70vh;
-      border-radius: 12px;
-      box-shadow: 0 0 25px rgba(255, 255, 255, 0.4);
-      transition: opacity 1s ease-in-out;
+    .header {
+      font-size: 5rem;
+      color: #ff2e2e;
+      text-shadow:
+        0 0 10px #ff2e2e,
+        0 0 20px #ff2e2e,
+        0 0 40px #ff0000,
+        0 0 80px #ff0000;
+      letter-spacing: 8px;
+      margin-bottom: 15px;
+      transition: color 0.5s, text-shadow 0.5s;
+    }
+
+    .header.soon {
+      color: #ffd700;
+      text-shadow:
+        0 0 10px #ffd700,
+        0 0 20px #ffcc00,
+        0 0 40px #ffaa00,
+        0 0 80px #ffaa00;
+    }
+
+    .time-bar-container {
+      position: relative;
+      width: 60%;
+      height: 10px;
+      margin-bottom: 40px;
     }
 
     #progress-container {
-      width: 60%;
-      height: 10px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 5px;
-      margin-top: 20px;
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
       overflow: hidden;
+      box-shadow: 0 0 10px rgba(255,255,255,0.3);
+      display: none;
     }
 
     #progress-bar {
-      height: 100%;
-      background: #ff5555;
       width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #fff, #ccc);
       transition: width 1s linear;
     }
 
-    #time {
-      margin-top: 10px;
-      font-size: 1.2em;
-      opacity: 0.8;
+    .time-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.3rem;
+      opacity: 0.9;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    #poster {
+      width: auto;
+      height: 70vh;
+      border-radius: 12px;
+      box-shadow: 0 0 40px rgba(255, 255, 255, 0.25);
+      transition: opacity 1s ease-in-out;
+      object-fit: contain;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { text-shadow: 0 0 10px #ff2e2e, 0 0 20px #ff2e2e, 0 0 40px #ff0000; }
+      50% { text-shadow: 0 0 20px #ff0000, 0 0 60px #ff2e2e, 0 0 100px #ff0000; }
+    }
+
+    .header.glow {
+      animation: glowPulse 2.5s infinite ease-in-out;
     }
   </style>
 </head>
 <body>
-  <h1 id="title">Coming Soon</h1>
-  <img id="poster" src="" alt="Poster">
-  <div id="progress-container" style="display:none;">
-    <div id="progress-bar"></div>
+  <div id="header" class="header glow">NOW SHOWING</div>
+
+  <div class="time-bar-container">
+    <div class="time-labels">
+      <span id="current-time">0:00</span>
+      <span id="total-time">0:00</span>
+    </div>
+    <div id="progress-container">
+      <div id="progress-bar"></div>
+    </div>
   </div>
-  <div id="time"></div>
+
+  <img id="poster" src="" alt="Poster">
 
   <script>
     let posters = [];
-    let currentPosterIndex = 0;
-    let posterInterval = 10000; // 10 seconds between random posters
+    let currentPoster = 0;
+    const switchInterval = 10000;
     let cycleTimer;
+    let progressUpdater;
+    let currentPosition = 0;
+    let totalDuration = 0;
+    let lastUpdateTime = Date.now();
+    let isPlaying = false;
 
-    async function loadLibrary() {
-      const res = await fetch("/api/library");
-      posters = await res.json();
-      showRandomPoster();
-    }
-
-    function showRandomPoster() {
-      if (posters.length === 0) return;
-      document.getElementById("title").textContent = "Coming Soon";
-      document.getElementById("poster").src = posters[currentPosterIndex];
-      document.getElementById("progress-container").style.display = "none";
-      document.getElementById("time").textContent = "";
-      currentPosterIndex = (currentPosterIndex + 1) % posters.length;
-      clearTimeout(cycleTimer);
-      cycleTimer = setTimeout(showRandomPoster, posterInterval);
-    }
-
-    async function checkNowPlaying() {
-      const res = await fetch("/api/now");
-      const data = await res.json();
-
-      if (data.title) {
-        clearTimeout(cycleTimer);
-        document.getElementById("title").textContent = "Now Playing: " + data.title;
-        document.getElementById("poster").src = data.poster;
-        document.getElementById("progress-container").style.display = "block";
-        document.getElementById("time").textContent = `${data.start_time} - ${data.end_time}`;
-        const percent = (data.position / data.duration) * 100;
-        document.getElementById("progress-bar").style.width = percent + "%";
-      } else {
-        document.getElementById("progress-container").style.display = "none";
-        showRandomPoster();
+    async function fetchLibrary() {
+      try {
+        const res = await fetch("/api/library");
+        posters = await res.json();
+        if (posters.length > 0) showRandomPoster();
+      } catch (e) {
+        console.error("Library fetch failed", e);
       }
     }
 
-    setInterval(checkNowPlaying, 5000);
-    loadLibrary();
-  </script>
-</body>
-</html>
+    function showRandomPoster() {
+      const header = document.getElementById("header");
+      const poster = document.getElementById("poster");
+      header.textContent = "COMING SOON";
+      header.classList.add("soon");
+      poster.src = posters[currentPoster];
+      document.getElementById("progress-container").style.display = "none";
+      document.getElementById("current-time").textContent = "";
+      document.getElementById("total-time").textContent = "";
+      currentPoster =
